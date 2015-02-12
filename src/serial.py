@@ -6,24 +6,46 @@ import time
 
 class ArduinoComm:
 
-	PIN1_NUM = 21
-	GPIO1_ROOT = '/sys/class/gpio'
-	GPIO1_PIN = '{0}/gpio{1}'.format(GPIO1_ROOT, PIN1_NUM)
-	GPIO1_DIR = '{0}/direction'.format(GPIO1_PIN)
-	GPIO1_VAL = '{0}/value'.format(GPIO1_PIN)
+	SERIAL_PATH = '/dev/ttymxc3'
+	GPIO_ROOT = '/sys/class/gpio'
+	
+	BAUD_RATE = 115200
+	ARDUINO_PIN = 21
+	LINUX_PIN = 19
+	
+	ARDUINO_PIN_PATH = '{0}/gpio{1}'.format(GPIO_ROOT, ARDUINO_PIN)
+	ARDUINO_PIN_DIR = '{0}/direction'.format(ARDUINO_PIN_PATH)
+	ARDUINO_PIN_VAL = '{0}/value'.format(ARDUINO_PIN_PATH)
 
-	PIN2_NUM = 19
-	GPIO2_ROOT = '/sys/class/gpio'
-	GPIO2_PIN = '{0}/gpio{1}'.format(GPIO2_ROOT, PIN2_NUM)
-	GPIO2_DIR = '{0}/direction'.format(GPIO2_PIN)
-	GPIO2_VAL = '{0}/value'.format(GPIO2_PIN)
+	LINUX_PIN_PATH = '{0}/gpio{1}'.format(GPIO_ROOT, LINUX_PIN)
+	LINUX_PIN_DIR = '{0}/direction'.format(LINUX_PIN_PATH)
+	LINUX_PIN_VAL = '{0}/value'.format(LINUX_PIN_PATH)
 	
 	ser = None
 
 	def init(self):
-		self.ser = serial.Serial('/dev/ttymxc3',115200,timeout=1)
+		self.ser = serial.Serial(self.SERIAL_PATH,self.BAUD_RATE,timeout=1)
 		self.ser.flushOutput()
 		print 'Serial connected'
+		self.initHandshake()
+		print 'Done initial handshake with Arduino'
+		
+	# Perform handshake with Arduino to initiate communication
+	def initHandshake(self):
+		# Confirm pin directions
+		if(self.getGPIODirection(ARDUINO_PIN_PATH) == 'out'):
+			self.setGPIODirection(ARDUINO_PIN_PATH, 'in')
+		if(self.getGPIODirection(LINUX_PIN_PATH) == 'in'):
+			self.setGPIODirection(LINUX_PIN_PATH, 'out')
+			
+		# perform handshake
+		while(readGPIO(self.ARDUINO_PIN_PATH) == '0'):
+			pass	# busy wait
+		pullPinHigh(self.LINUX_PIN_PATH)				# Bring Linux pin high
+		while(readGPIO(ARDUINO_PIN_PATH) == '1'):		# Wait for Arduino pin to go low
+			pass	# busy wait
+		pullPinLow(self.LINUX_PIN_PATH)					# Pull Linux pin low
+		sleep(5)										# Settle time
 
 	def blinkLED(self, gpio_val):
 		for num in range(100): 
@@ -34,11 +56,11 @@ class ArduinoComm:
 
 	# Perform GPIO handshake and send data over serial line
 	def sendData(self, data):
-		# Pull pin 2 low
-		if(self.getGPIODirection(self.GPIO2_DIR) == 'out'):
-			if(self.readGPIO(self.GPIO2_VAL) == '1'):
-				self.pullPinLow(self.GPIO2_VAL)
-				self.writeData(self.ser, 1)
+		if(self.getGPIODirection(self.LINUX_PIN_DIR) == 'out'):
+			if(self.readGPIO(self.ARDUINO_PIN_PATH) == '1'):
+				self.pullPinHigh(self.LINUX_PIN_PATH)
+				self.writeData(self.ser, data)
+				self.pullPinLow(self.LINUX_PIN_PATH)
 				print data
 			else:
 				# no data ready
@@ -78,6 +100,13 @@ class ArduinoComm:
 		direction = f.read()
 		print 'GPIO direction: {0}'.format(direction)
 		return direction
+		
+	# Set the GPIO pin to either input or output
+	def setGPIODirection(self, gpiopath, direction):
+		f = open(gpiopath, 'w')
+		f.write(str(direction))
+		f.close()
+		print 'GPIO direction set: {0}'.format(direction)
 
 	def pullPinLow(self, gpio_val):
 		self.writeGPIO(gpio_val, '0')
