@@ -10,18 +10,13 @@ from std_msgs.msg import String
 def callback(data):
 	rospy.loginfo(rospy.get_caller_id() + 'msg recvd: %s', data.data)
 
-# Executed when a message is received
-def subscribe():
-	rospy.init_node('arduino_fwd', anonymous=False)
-	rospy.Subscriber('control_msgs', String, callback)
-	rospy.spin()
-
 class ArduinoComm:
 
 	SERIAL_PATH = '/dev/ttymxc3'
 	GPIO_ROOT = '/sys/class/gpio'
 	
 	BAUD_RATE = 115200
+	PACKET_SIZE = 5				# in bytes
 	ARDUINO_PIN = 136 			# Arduino pin 30 / GPIO pin 136
 	LINUX_PIN = 137				# Arduino pin 31 / GPIO pin 137
 	
@@ -34,13 +29,18 @@ class ArduinoComm:
 	LINUX_PIN_VAL = '{0}/value'.format(LINUX_PIN_PATH)
 	
 	ser = None
+	pub = None			# ros publisher
+	sub = None			# ros subscriber
 
 	def __init__(self):
+		rospy.init_node('arduino', anonymous=False)
+		self.pub = rospy.Publisher('status_msgs', String)
+		self.sub = rospy.Subscriber('control_msgs', String, callback)
 		self.ser = serial.Serial(self.SERIAL_PATH,self.BAUD_RATE,timeout=1)
 		self.ser.flushOutput()
-		print 'Serial connected'
+		rospy.loginfo('Serial connected')
 		self.initHandshake()
-		print 'Done initial handshake with Arduino'
+		rospy.loginfo('Done initial handshake with Arduino')
 		
 	# Perform handshake with Arduino to initiate communication
 	def initHandshake(self):
@@ -51,34 +51,34 @@ class ArduinoComm:
 			self.setGPIODirection(self.LINUX_PIN_DIR, 'out')
 			
 		# perform handshake
-		print 'Waiting for Arduino pin to go high...'
+		rospy.loginfo('Waiting for Arduino pin to go high...')
 		while(self.readGPIO(self.ARDUINO_PIN_VAL) == '0'):
 			pass
-		print 'Pulling Linux pin high...'
+		rospy.loginfo('Pulling Linux pin high...')
 		self.pullPinHigh(self.LINUX_PIN_VAL)				# Bring Linux pin high
-		print 'Waiting for Arduino pin to go low...'
+		rospy.loginfo('Waiting for Arduino pin to go low...')
 		while(self.readGPIO(self.ARDUINO_PIN_VAL) == '1'):	# Wait for Arduino pin to go low
 			pass
-		print 'Pulling Linux pin low'
+		rospy.loginfo('Pulling Linux pin low')
 		self.pullPinLow(self.LINUX_PIN_VAL)			# Pull Linux pin low
 		time.sleep(5)										# Settle time
-		print '--> init handshake complete'
+		rospy.loginfo('--> init handshake complete')
 
 	# Perform GPIO handshake and send data over serial line
 	def sendData(self, data):
 		if(self.getGPIODirection(self.LINUX_PIN_DIR) == 'out'):
-			print 'Waiting for Arduino pin to go low...'
+			rospy.loginfo('Waiting for Arduino pin to go low...')
 			while(self.readGPIO(self.ARDUINO_PIN_VAL) == '1'):
 				pass
-			print 'Pulling Linux pin high'
+			rospy.loginfo('Pulling Linux pin high')
 			self.pullPinHigh(self.LINUX_PIN_VAL)
-			print 'Waiting for Arduino pin to go high...'
+			rospy.loginfo('Waiting for Arduino pin to go high...')
 			while(self.readGPIO(self.ARDUINO_PIN_VAL) == '0'):
 				pass
-			print 'Pulling Linux pin low'
+			rospy.loginfo('Pulling Linux pin low')
 			self.pullPinLow(self.LINUX_PIN_VAL)
-			print 'sending data...'
-			print 'DATA TO SEND: {0:b}'.format(data)
+			rospy.loginfo('sending data...')
+			rospy.loginfo('DATA TO SEND: {0:b}'.format(data))
 			self.writeData(data)
 		else:
 			# throw error
@@ -87,23 +87,24 @@ class ArduinoComm:
 	# Perform GPIO handshake and receive data over serial line
 	def recvData(self):
 		# Read pin to see if pulled low
-		print 'data receive handshake'
+		rospy.loginfo('data receive handshake')
 		if(self.getGPIODirection(self.LINUX_PIN_DIR) == 'out'):
-			print 'Waiting for Arduino pin to go high...'
+			rospy.loginfo('Waiting for Arduino pin to go high...')
 			while(self.readGPIO(self.ARDUINO_PIN_VAL) == '0'):
 				pass
-			print 'Pulling Linux pin high'
+			rospy.loginfo('Pulling Linux pin high')
 			self.pullPinHigh(self.LINUX_PIN_VAL)
-			print 'Waiting for Arduino pin to go low...'
+			rospy.loginfo('Waiting for Arduino pin to go low...')
 			while(self.readGPIO(self.ARDUINO_PIN_VAL) == '1'):
 				pass
-			print 'Waiting for Arduino pin to go high...'
+			rospy.loginfo('Waiting for Arduino pin to go high...')
 			while(self.readGPIO(self.ARDUINO_PIN_VAL) == '0'):
 				pass
-			print 'Pulling Linux pin low'
+			rospy.loginfo('Pulling Linux pin low')
 			self.pullPinLow(self.LINUX_PIN_VAL)
-			data = self.readData(self.ser, 2)
-			print '--> DATA: {0}'.format(data)
+			data = self.readData(self.ser, self.PACKET_SIZE)
+			rospy.loginfo('--> DATA: {0}'.format(data))
+			self.pub.publish(data)
 		else:
 			# throw error
 			pass
@@ -142,14 +143,12 @@ class ArduinoComm:
 		self.ser.write(data)
 
 	def readData(self, ser, bytes):
-		data = ser.read(bytes)
+		rospy.loginfo(ser.read(size=bytes))
+		data = ser.read(size=bytes)
 		return data
 
-def main():
-	ac = ArduinoComm()
-	while(True):
-		ac.recvData()
-
 if __name__ == "__main__":
-	#main()
-	subscribe()
+	ac = ArduinoComm()
+	while not rospy.is_shutdown():
+		ac.recvData()
+	rospy.spin()
