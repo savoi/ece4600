@@ -30,7 +30,7 @@ class OperatorComm():
 	# Initialize ROS publisher, subscriber and socket connection
 	def __init__(self):
 		rospy.init_node('operator', anonymous=False)
-		self.rate = rospy.Rate(1)
+		self.rate = rospy.Rate(10)
 		# Initialize ROS pub and sub
 		self.pub = rospy.Publisher('control_msgs', String, queue_size=20)
 		self.sub = rospy.Subscriber('status_msgs', String, self.handleArduinoData)
@@ -75,7 +75,7 @@ class OperatorComm():
 							self.pub.publish(data)
 							self.parsedata(data)
 							bytes_sent = sock.send(str(self.outgoing_msgs[0]))
-							rospy.loginfo('{0} bytes sent'.format(bytes_sent))
+							rospy.logdebug('{0} bytes sent'.format(bytes_sent))
 					except:
 						rospy.loginfo('Client disconnected')
 						sock.close()
