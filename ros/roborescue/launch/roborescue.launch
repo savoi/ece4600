@@ -1,13 +1,9 @@
 <launch>
 
 	<group ns="roborescue">
-		<node pkg="operator_pub" name="operator_pub" type="roborescue_node" />
-		<node pkg="arduino_fwd" name="arduino_fwd" type="roborescue_node" />
-	</group>
-
-	<group ns="roborescue_debug">
-		<node pkg="operator_pub" name="operator_pub" type="roborescue_node" />
-		<node pkg="arduino_fwd" name="arduino_fwd" type="roborescue_node" />
+		<node pkg="roborescue" name="operator" type="operator.py" respawn="true" />
+		<node pkg="roborescue" name="arduino" type="arduino.py" respawn="true" />
+		<node pkg="roborescue" name="lights" type="lights.py" respawn="true" />
 	</group>
 
 </launch>
