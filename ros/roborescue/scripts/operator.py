@@ -9,6 +9,7 @@ import socket
 import sys
 
 from bitstring import Bits, BitArray, BitStream
+from proto import ControlPacket, PacketError
 from std_msgs.msg import String
 
 class OperatorComm():
@@ -72,8 +73,13 @@ class OperatorComm():
 						data = sock.recv(self.BUFFER_SIZE)
 						if data:
 							rospy.logdebug('received "{0}"'.format(data))
+							try:
+								packet = ControlPacket(data)
+								if packet.robotshutdown == '11':
+									rospy.set_param('operator_shutdown', True)
+							except:
+								pass
 							self.pub.publish(data)
-							self.parsedata(data)
 							bytes_sent = sock.send(str(self.outgoing_msgs[0]))
 							rospy.logdebug('{0} bytes sent'.format(bytes_sent))
 					except:
@@ -82,30 +88,6 @@ class OperatorComm():
 						self.connections.remove(sock)
 						continue
 			self.rate.sleep()
-
-	def parsedata(self, data):
-		ba = Bits(bytes=data)	
-		rospy.loginfo('{} bits received'.format(len(ba.bin)))
-		if(ba.bin[0] == '0'):
-			rospy.loginfo('FORWARD SPEED: "{0}"'.format(ba.bin[1:8]))
-		elif(ba.bin[0] == '1'):
-			rospy.loginfo('BACKWARD SPEED: "{0}"'.format(ba.bin[1:8]))
-
-		forward = ba.bin[0]						# bit 0: move forward/backward
-		speedmag = ba.bin[1:8]					# bits 1-7: speed
-		leftright = ba.bin[8]					# bit 8: turn left/right
-		if(leftright == '0'):
-			rospy.loginfo('LEFT')
-		else:
-			rospy.loginfo('RIGHT')
-		#turnmag = ba.bin[]
-		#frontflipper = ba.bin[]
-		#backflipper = ba.bin[]
-		arm = ba.bin[14:17]
-		pan = ba.bin[18:19]						# bits 18,19: pan
-		tilt = ba.bin[20:21]					# bits 20,21: tilt
-		lights = ba.bin[22]						# bit 22: lights on/off
-		robot_shutdown = ba.bin[3:5:8]			# 5th byte (robot shutdown)
 
 if __name__ == "__main__":
 	try:
