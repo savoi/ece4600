@@ -3,7 +3,10 @@
 	<group ns="roborescue">
 		<node pkg="roborescue" name="operator" type="operator.py" respawn="true" />
 		<node pkg="roborescue" name="arduino" type="arduino.py" respawn="true" />
+		<node pkg="roborescue" name="videoserver" type="videoserver.py" respawn="true" />
 		<node pkg="roborescue" name="lights" type="lights.py" respawn="true" />
 	</group>
+	
+	<rosparam> operator_shutdown: False </rosparam>
 
 </launch>
