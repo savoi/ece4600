@@ -31,39 +31,45 @@ class VideoServer:
 	PORT_CAM1 = 9000
 	PORT_CAM2 = 9002
 
-
 	# Initialize ROS subscriber
 	def __init__(self):
+		self.proc1 = None
+		self.proc2 = None
 		rospy.init_node('videoserver', anonymous=False)
 		self.sub = rospy.Subscriber('control_msgs', String, self.handleControlPacket)
-		# start video server
-		self.init_camera1()
-		#self.init_camera2()
+		rospy.spin()
 	
 	# Toggles cameras one and two on/off
 	def handleControlPacket(self, data):
 		packet = ControlPacket(data.data)
 		if packet.camone == '11':
 			if not self.proc1:			# server not running
+				rospy.loginfo('Starting video server 1')	
 				self.init_camera1()	
 			else:						# server running
-				self.proc1.terminate()
+				rospy.loginfo('Killing video server 1')	
+				os.kill(self.proc1.pid, signal.SIGTERM)
+				self.proc1 = None
 		if packet.camtwo == '11':
-			if self.pid2 == -1:		# server not running
+			if not self.proc2:			# server not running
+				rospy.loginfo('Starting video server 2')	
 				self.init_camera2()	
 			else:						# server running
-				os.kill(self.pid2, signal.SIGHUP)
-				self.pid2 = -1
+				rospy.loginfo('Killing video server 2')	
+				os.kill(self.proc2.pid, signal.SIGTERM)
+				self.proc2 = None
 	
 	def init_camera1(self):
-		args = shlex.split(self.cam1pipe1)
-		self.proc1 = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		outval, errval = self.proc1.communicate()
-		print errval
+		args = ["/usr/bin/python", "/home/ubuntu/catkin_ws/src/roborescue/scripts/videopipelines.py", "1"]
+		self.proc1 = subprocess.Popen(args, shell=False,
+									  close_fds=True,
+									  preexec_fn=os.setsid,)
 		
 	def init_camera2(self):
-		args = shlex.split(self.cam1pipe1)
-		self.p2 = subprocess.Popen(args)
+		args = ["/usr/bin/python", "/home/ubuntu/catkin_ws/src/roborescue/scripts/videopipelines.py", "2"]
+		self.proc2 = subprocess.Popen(args, shell=False,
+									  close_fds=True,
+									  preexec_fn=os.setsid,)
 		
 if __name__ == "__main__":
 	try:
