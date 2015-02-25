@@ -87,10 +87,10 @@ class ArduinoComm:
 	def initHandshake(self):
 		rospy.loginfo('--> starting init handshake')
 		self.waitForHigh()
-		rospy.loginfo('Pulling Linux pin high...')
+		rospy.logdebug('Pulling Linux pin high...')
 		self.pullPinHigh(self.LINUX_PIN_VAL)
 		self.waitForLow()
-		rospy.loginfo('Pulling Linux pin low')
+		rospy.logdebug('Pulling Linux pin low')
 		self.pullPinLow(self.LINUX_PIN_VAL)
 		time.sleep(1)								# Settle time
 		rospy.loginfo('--> init handshake complete')
@@ -106,19 +106,19 @@ class ArduinoComm:
 				rospy.logdebug('Pulling Linux pin low')
 				self.pullPinLow(self.LINUX_PIN_VAL)
 				# send data
-				rospy.loginfo('DATA TO SEND: {0}'.format(self.msgs[0]))
+				rospy.logdebug('DATA TO SEND: {0}'.format(self.msgs[0]))
 				self.writeData(str(self.msgs[0]))
 				self.waitForLow()
 				# receive data
 				data = self.readData(self.ser, self.MAX_READ_SIZE)
 				if data:
-					rospy.loginfo('--> DATA RECVD: {0}'.format(data.encode('hex')))
+					rospy.logdebug('--> DATA RECVD: {0}'.format(data.encode('hex')))
 					self.pub.publish(data)
 			self.rate.sleep()
 
 	# Wait for Arduino pin to go high
 	def waitForHigh(self):
-		rospy.loginfo('Waiting for Arduino pin to go high...')
+		rospy.logdebug('Waiting for Arduino pin to go high...')
 		signal.alarm(self.HS_TIMEOUT)
 		while(self.readGPIO(self.ARDUINO_PIN_VAL) == '0'):
 			pass
@@ -126,7 +126,7 @@ class ArduinoComm:
 
 	# Wait for Arduino pin to go low
 	def waitForLow(self):
-		rospy.loginfo('Waiting for Arduino pin to go low...')
+		rospy.logdebug('Waiting for Arduino pin to go low...')
 		signal.alarm(self.HS_TIMEOUT)
 		while(self.readGPIO(self.ARDUINO_PIN_VAL) == '1'):
 			pass
