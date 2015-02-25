@@ -26,12 +26,17 @@ class LightDriver():
 		self.light = False
 		self.initpins()
 		rospy.init_node('lights', anonymous=False)
+		rospy.on_shutdown(self.shutdownHook)
 		self.sub = rospy.Subscriber('control_msgs', String, self.handleControlPacket)
 		rospy.spin()
 
+	def shutdownHook(self):
+		rospy.logwarn('!!! LIGHT DRIVER SHUTDOWN !!!')
+
 	def handleControlPacket(self, data):
 		packet = ControlPacket(data.data)
-		rospy.loginfo(packet)
+		if rospy.get_param('/operator_shutdown') == True:
+			signal_shutdown('!!! Operator-initiated shutdown !!!')
 		if packet.lights == '1':
 			rospy.loginfo('Toggling lights')
 			self.light = not self.light
