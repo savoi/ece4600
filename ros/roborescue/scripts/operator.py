@@ -16,7 +16,7 @@ class OperatorComm():
 
 	PACKET_SIZE = 5				# Control message size in bytes
 	LISTEN_PORT = 6969			# Operator station control msgs
-	BUFFER_SIZE = 256
+	BUFFER_SIZE = 5
 	
 	connections = []		# list of socket clients
 	pub = None				# ros publisher
