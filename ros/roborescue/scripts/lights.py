@@ -34,16 +34,20 @@ class LightDriver():
 		rospy.logwarn('!!! LIGHT DRIVER SHUTDOWN !!!')
 
 	def handleControlPacket(self, data):
-		packet = ControlPacket(data.data)
-		if rospy.get_param('/operator_shutdown') == True:
-			signal_shutdown('!!! Operator-initiated shutdown !!!')
-		if packet.lights == '1':
-			rospy.loginfo('Toggling lights')
-			self.light = not self.light
-			if self.light:
-				self.writeGPIO(self.LIGHT_PIN_VAL, '1')
-			else:
-				self.writeGPIO(self.LIGHT_PIN_VAL, '0')
+		if rospy.has_param('/operator_shutdown'):
+			if rospy.get_param('/operator_shutdown') == True:
+				signal_shutdown('!!! Operator-initiated shutdown !!!')
+		try:
+			packet = ControlPacket(data.data)
+			if packet.lights == '1':
+				rospy.loginfo('Toggling lights')
+				self.light = not self.light
+				if self.light:
+					self.writeGPIO(self.LIGHT_PIN_VAL, '1')
+				else:
+					self.writeGPIO(self.LIGHT_PIN_VAL, '0')
+		except PacketError:
+			rospy.logwarn('Packet parse error')
 			
 
 	# Initialize the GPIO pin directions and values
